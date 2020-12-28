@@ -1,0 +1,563 @@
+OPTION _EXPLICIT
+$CHECKING:OFF
+
+$CONSOLE:ONLY
+_DEST _CONSOLE
+_CONSOLETITLE "UUID Generator"
+
+CONST INTERNET_OPEN_TYPE_DIRECT = 1
+
+CONST INTERNET_DEFAULT_HTTP_PORT = 80
+CONST INTERNET_DEFAULT_HTTPS_PORT = 443
+
+CONST INTERNET_SERVICE_HTTP = 3
+
+'Flags
+CONST INTERNET_FLAG_SECURE = &H00800000
+CONST INTERNET_FLAG_RELOAD = &H80000000
+
+TYPE GUID
+    Data1 AS _UNSIGNED LONG
+    Data2 AS _UNSIGNED INTEGER
+    Data3 AS _UNSIGNED INTEGER
+    Data4 AS _UNSIGNED _BYTE
+    Data5 AS _UNSIGNED _BYTE
+    Data6 AS _UNSIGNED _BYTE
+    Data7 AS _UNSIGNED _BYTE
+    Data8 AS _UNSIGNED _BYTE
+    Data9 AS _UNSIGNED _BYTE
+    Data10 AS _UNSIGNED _BYTE
+    Data11 AS _UNSIGNED _BYTE
+END TYPE
+
+TYPE SystemTime
+    wYear AS INTEGER
+    wMonth AS INTEGER
+    wDayOfWeek AS INTEGER
+    wDay AS INTEGER
+    wHour AS INTEGER
+    wMinute AS INTEGER
+    wSecond AS INTEGER
+    wMilliseconds AS INTEGER
+END TYPE
+
+TYPE TDZoneInfo 'TIME_DYNAMIC_ZONE_INFORMATION
+    Bias AS LONG
+    StandardName AS STRING * 64 'wchar32
+    StandardDate AS SystemTime
+    StandardBias AS LONG
+    DaylightName AS STRING * 64 'wchar32
+    DaylightDate AS SystemTime
+    DaylightBias AS LONG
+    TimeZoneKeyName AS STRING * 256 ' WCHAR128
+    DynamicDaylightTimeDisabled AS _BYTE 'BOOLEAN->BYTE
+END TYPE
+
+DECLARE DYNAMIC LIBRARY "kernel32"
+  FUNCTION SystemTimeToTzSpecificLocalTime%% (BYVAL lpTimeZoneInformation AS _UNSIGNED _OFFSET,_
+    BYVAL lpUniversalTime AS _UNSIGNED _OFFSET, BYVAL lpLocalTime AS _UNSIGNED _OFFSET)
+    FUNCTION GetDynamicTimeZoneInformation~& (BYVAL lpTimeZoneInformation AS _UNSIGNED _OFFSET)
+    SUB GetSystemTime (BYVAL lpSystemTime AS _UNSIGNED _OFFSET)
+END DECLARE
+
+DIM SHARED GUIDHash AS _UNSIGNED INTEGER
+
+DECLARE DYNAMIC LIBRARY "rpcrt4"
+    FUNCTION UuidCreate%& (GUID AS GUID) 'Version 4 UUID
+    FUNCTION UuidCreateSequential%& (GUID AS GUID) 'Version 1 UUID
+    FUNCTION UuidHash~% (GUID AS GUID, Status AS LONG)
+    FUNCTION UuidCompare% (GUID AS GUID, GUID AS GUID, Status AS LONG)
+END DECLARE
+
+DECLARE LIBRARY "uuiddate"
+    FUNCTION uuiddate$ (BYVAL timestamp~&&) 'used to extract date from Version 1 UUID
+END DECLARE
+
+DECLARE DYNAMIC LIBRARY "Wininet"
+    FUNCTION InternetOpen& ALIAS InternetOpenA (BYVAL lpszAgent AS _OFFSET, BYVAL dwAccessType AS LONG, BYVAL lpszProxy AS _OFFSET, BYVAL lpszProxyBypass AS _OFFSET, BYVAL dwFlags AS LONG)
+    FUNCTION InternetConnect& ALIAS InternetConnectA (BYVAL hInternet AS LONG, BYVAL lpszServerName AS _OFFSET, BYVAL nServerPort AS INTEGER, BYVAL lpszUserName AS _OFFSET, BYVAL lpszPassword AS _OFFSET, BYVAL dwService AS LONG, BYVAL dwFlags AS LONG, BYVAL dwContext AS _OFFSET)
+    FUNCTION HTTPOpenRequest& ALIAS HttpOpenRequestA (BYVAL hConnect AS LONG, BYVAL lpszVerb AS _OFFSET, BYVAL lpszObjectName AS _OFFSET, BYVAL lpszVersion AS _OFFSET, BYVAL lpszReferrer AS _OFFSET, BYVAL lpszAcceptTypes AS _OFFSET, BYVAL dwFlags AS LONG, BYVAL dwContext AS _OFFSET)
+    FUNCTION HTTPSendRequest%% ALIAS HttpSendRequestA (BYVAL hRequest AS LONG, BYVAL lpszHeaders AS _OFFSET, BYVAL dwHeadersLength AS LONG, BYVAL lpOptional AS _OFFSET, BYVAL dwOptionalLength AS LONG)
+    FUNCTION InternetCloseHandle%% (BYVAL hInternet AS LONG)
+    FUNCTION InternetReadFile%% (BYVAL hFile AS LONG, BYVAL lpBuffer AS _OFFSET, BYVAL dwNumberOfBytesToRead AS LONG, BYVAL lpdwNumberOfBytesRead AS _OFFSET)
+END DECLARE
+
+PRINT "4 Sequential Version 1 UUIDs:"
+PRINT "_______________________________________________"
+DIM x
+DIM UUID AS STRING
+DIM MAC AS STRING
+FOR x = 1 TO 4
+    UUID = UUIDVer1
+    PRINT UUID
+    PRINT "Timestamp (Local): "; ExtractTimestamp(UUID)
+    PRINT "Clock Sequence   : "; ClockSequence(UUID)
+    PRINT "UUID Variant     : "; UUIDVariant(UUID)
+    PRINT "UUID Version     : "; UUIDVersion(UUID)
+    PRINT "UUID Hash        : "; _TRIM$(STR$(GUIDHash))
+    PRINT "MAC Address      : "; MACAddress(UUID)
+    MAC = MACAddress(UUID)
+    PRINT "MAC Vendor       : "; MACVendor(MAC)
+    PRINT
+    _DELAY 0.25 'Delay so API doesn't respond with error of too many requests back to back
+NEXT
+PRINT
+
+PRINT "4 Version 3 UUIDs using www.qb64.org as seed:"
+PRINT "_______________________________________________"
+UUID = UUIDVer3(1, "www.qb64.org")
+PRINT UUID, "(DNS namespace based)"
+PRINT "UUID Variant   : "; UUIDVariant(UUID)
+PRINT "UUID Version   : "; UUIDVersion(UUID)
+PRINT "UUID Hash      : "; _TRIM$(STR$(GUIDHash))
+PRINT
+
+UUID = UUIDVer3(2, "www.qb64.org")
+PRINT UUID, "(URL namespace based)"
+PRINT "UUID Variant   : "; UUIDVariant(UUID)
+PRINT "UUID Version   : "; UUIDVersion(UUID)
+PRINT "UUID Hash      : "; _TRIM$(STR$(GUIDHash))
+PRINT
+
+UUID = UUIDVer3(3, "www.qb64.org")
+PRINT UUID, "(OID namespace based)"
+PRINT "UUID Variant   : "; UUIDVariant(UUID)
+PRINT "UUID Version   : "; UUIDVersion(UUID)
+PRINT "UUID Hash      : "; _TRIM$(STR$(GUIDHash))
+PRINT
+
+UUID = UUIDVer3(4, "www.qb64.org")
+PRINT UUID, "(x500 namespace based)"
+PRINT "UUID Variant   : "; UUIDVariant(UUID)
+PRINT "UUID Version   : "; UUIDVersion(UUID)
+PRINT "UUID Hash      : "; _TRIM$(STR$(GUIDHash))
+PRINT
+
+PRINT "4 Random Version 4 UUIDs:"
+PRINT "_______________________________________________"
+FOR x = 1 TO 4
+    UUID = UUIDVer4
+    PRINT UUID
+    PRINT "UUID Variant   : "; UUIDVariant(UUID)
+    PRINT "UUID Version   : "; UUIDVersion(UUID)
+    PRINT "UUID Hash      : "; _TRIM$(STR$(GUIDHash))
+    PRINT
+NEXT
+PRINT
+
+PRINT "4 Version 5 UUIDs using www.qb64.org as seed:"
+PRINT "_______________________________________________"
+UUID = UUIDVer5(1, "www.qb64.org")
+PRINT UUID, "(DNS namespace based)"
+PRINT "UUID Variant   : "; UUIDVariant(UUID)
+PRINT "UUID Version   : "; UUIDVersion(UUID)
+PRINT "UUID Hash      : "; _TRIM$(STR$(GUIDHash))
+PRINT
+
+UUID = UUIDVer5(2, "www.qb64.org")
+PRINT UUID, "(URL namespace based)"
+PRINT "UUID Variant   : "; UUIDVariant(UUID)
+PRINT "UUID Version   : "; UUIDVersion(UUID)
+PRINT "UUID Hash      : "; _TRIM$(STR$(GUIDHash))
+PRINT
+
+UUID = UUIDVer5(3, "www.qb64.org")
+PRINT UUID, "(OID namespace based)"
+PRINT "UUID Variant   : "; UUIDVariant(UUID)
+PRINT "UUID Version   : "; UUIDVersion(UUID)
+PRINT "UUID Hash      : "; _TRIM$(STR$(GUIDHash))
+PRINT
+
+UUID = UUIDVer5(4, "www.qb64.org")
+PRINT UUID, "(x500 namespace based)"
+PRINT "UUID Variant   : "; UUIDVariant(UUID)
+PRINT "UUID Version   : "; UUIDVersion(UUID)
+PRINT "UUID Hash      : "; _TRIM$(STR$(GUIDHash))
+PRINT
+
+SLEEP
+
+
+FUNCTION ClockSequence$ (UUID AS STRING)
+    ClockSequence = _TRIM$(STR$(VAL("&H" + MID$(UUID, 21, 3))))
+END FUNCTION
+
+FUNCTION MACVendor$ (MAC AS STRING)
+    DIM URL AS STRING
+    DIM URLFile AS STRING
+    URLFile = "macvendorrequest"
+    DIM hsession AS LONG
+    hsession = InternetOpen(0, INTERNET_OPEN_TYPE_DIRECT, 0, 0, 0)
+    DIM httpsession AS LONG
+    URL = "api.macvendors.com" + CHR$(0)
+    httpsession = InternetConnect(hsession, _OFFSET(URL), INTERNET_DEFAULT_HTTPS_PORT, 0, 0, INTERNET_SERVICE_HTTP, 0, 0)
+
+    DIM httpRequest AS LONG
+    DIM sessiontype AS STRING
+    sessiontype = "GET" + CHR$(0)
+    DIM location AS STRING
+    location = "/v1/lookup/" + MAC + CHR$(0)
+    DIM accepttypes AS STRING
+    accepttypes = "text/plain" + CHR$(0)
+    httpRequest = HTTPOpenRequest(httpsession, _OFFSET(sessiontype), _OFFSET(location), 0, 0, _OFFSET(accepttypes), INTERNET_FLAG_RELOAD OR INTERNET_FLAG_SECURE, 0)
+
+    DIM sendrequest AS LONG
+    DIM headers AS STRING
+    headers = "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiIsImp0aSI6IjllMmQ0YzYwLTU3NmQtNDI2OC04NDdkLWIyYTUwNGEyM2ZhMCJ9.eyJpc3MiOiJtYWN2ZW5kb3JzIiwiYXVkIjoibWFjdmVuZG9ycyIsImp0aSI6IjllMmQ0YzYwLTU3NmQtNDI2OC04NDdkLWIyYTUwNGEyM2ZhMCIsImlhdCI6MTU5NTkzMzc1OSwiZXhwIjoxOTEwNDI5NzU5LCJzdWIiOiI3NTkyIiwidHlwIjoiYWNjZXNzIn0.9MTN3PlkFxHAokvIKFFtF1aJYdXwjFpC2etMejJ-V4l9NCbT_qhqF-BpNv25h9kpDfntyGWCMXvqs6s9ShEbkw" + CHR$(13) + CHR$(10) + "Accept: text/plain" '+ CHR$(13) + CHR$(10)
+    sendrequest = HTTPSendRequest(httpRequest, _OFFSET(headers), LEN(headers), 0, 0)
+    DIM szBuffer AS STRING
+    szBuffer = SPACE$(1025)
+    DIM dwRead AS LONG
+    DIM readfile AS LONG
+    DIM a AS _BYTE
+    a = InternetReadFile(httpRequest, _OFFSET(szBuffer), LEN(szBuffer) - 1, _OFFSET(dwRead))
+    DIM macvendorrequest AS STRING
+    DIM closeh AS LONG
+    closeh = InternetCloseHandle(hsession)
+    IF INSTR(szBuffer, "errors") THEN
+        MACVendor = "Too Many Requests: Slow down"
+    ELSE
+        macvendorrequest = _TRIM$(szBuffer)
+        MACVendor = macvendorrequest
+    END IF
+END FUNCTION
+
+FUNCTION MACAddress$ (UUID AS STRING)
+    MACAddress = MID$(UUID, 25, 2) + "-" + MID$(UUID, 27, 2) + "-" + MID$(UUID, 29, 2) + "-" + MID$(UUID, 31, 2) + "-" + MID$(UUID, 33, 2) + "-" + MID$(UUID, 35, 2)
+END FUNCTION
+
+FUNCTION UUIDVersion$ (UUID AS STRING)
+    DIM version AS STRING
+    version = MID$(UUID, 15, 1)
+    SELECT CASE version
+        CASE "1"
+            UUIDVersion = "1 (time and node based)"
+            EXIT FUNCTION
+        CASE "3"
+            UUIDVersion = "3 (name based, MD5)"
+            EXIT FUNCTION
+        CASE "4"
+            UUIDVersion = "4 (random data based)"
+            EXIT FUNCTION
+        CASE "5"
+            UUIDVersion = "5 (name based, SHA-1)"
+            EXIT FUNCTION
+    END SELECT
+END FUNCTION
+
+FUNCTION UUIDVariant$ (UUID AS STRING)
+    DIM variant AS STRING
+    variant = MID$(UUID, 20, 1)
+    IF VAL("&H" + variant) >= 0 AND VAL("&H" + variant) <= 7 THEN
+        UUIDVariant = "reserved (NCS backward compatible)"
+        EXIT FUNCTION
+    ELSEIF VAL("&H" + variant) >= 8 AND VAL("&H" + variant) <= 11 THEN
+        UUIDVariant = "DCE 1.1, ISO/IEC 11578:1996"
+        EXIT FUNCTION
+    ELSEIF VAL("&H" + variant) >= 12 AND VAL("&H" + variant) <= 13 THEN
+        UUIDVariant = "reserved (Microsoft GUID)"
+        EXIT FUNCTION
+    ELSEIF VAL("&H" + variant) = 14 THEN
+        UUIDVariant = "reserved (future use)"
+        EXIT FUNCTION
+    ELSEIF VAL("&H" + variant) = 15 THEN
+        UUIDVariant = "unknown/invalid"
+        EXIT FUNCTION
+    END IF
+END FUNCTION
+
+FUNCTION ExtractTimestamp$ (UUID AS STRING)
+    DIM timestamp AS _UNSIGNED _INTEGER64
+    DIM data1 AS STRING
+    DIM data2 AS STRING
+    DIM data3 AS STRING
+    DIM hours
+    DIM minutes
+    DIM seconds
+    data1 = MID$(UUID, 16, 3)
+    data2 = MID$(UUID, 10, 4)
+    data3 = MID$(UUID, 1, 8)
+    timestamp = VAL("&H" + data1 + data2 + data3)
+    timestamp = timestamp / 10000000 - 12219292800
+    hours = timestamp \ 3600 MOD 24 'UTC timezone
+    minutes = timestamp \ 60 MOD 60
+    seconds = timestamp MOD 60
+    DIM UTCTime AS SystemTime, loctime AS SystemTime, ZoneInfo AS TDZoneInfo
+    DIM uuidate AS STRING
+    uuidate = uuiddate(timestamp)
+    UTCTime.wYear = VAL(MID$(uuidate, 1, 4))
+    UTCTime.wMonth = VAL(MID$(uuidate, 6, 2))
+    SELECT CASE UTCTime.wMonth
+        CASE IS < 10
+            UTCTime.wDay = VAL(MID$(uuidate, 8, 2))
+        CASE IS >= 10
+            UTCTime.wDay = VAL(MID$(uuidate, 9, 2))
+    END SELECT
+    UTCTime.wHour = hours
+    UTCTime.wMinute = minutes
+    UTCTime.wSecond = seconds
+    DIM e~&
+    DIM f%%
+    e~& = GetDynamicTimeZoneInformation(_OFFSET(ZoneInfo))
+    f%% = SystemTimeToTzSpecificLocalTime(_OFFSET(ZoneInfo), _OFFSET(UTCTime), _OFFSET(loctime))
+    DIM year AS STRING
+    DIM month AS STRING
+    DIM day AS STRING
+    DIM hour AS STRING
+    DIM minute AS STRING
+    DIM second AS STRING
+    year = _TRIM$(STR$(loctime.wYear))
+    month = _TRIM$(STR$(loctime.wMonth))
+    IF LEN(month) <> 2 THEN
+        month = "0" + month
+    END IF
+    day = _TRIM$(STR$(loctime.wDay))
+    IF LEN(day) <> 2 THEN
+        day = "0" + day
+    END IF
+    hour = _TRIM$(STR$(loctime.wHour))
+    IF LEN(hour) <> 2 THEN
+        hour = "0" + hour
+    END IF
+    minute = _TRIM$(STR$(loctime.wMinute))
+    IF LEN(minute) <> 2 THEN
+        minute = "0" + minute
+    END IF
+    second = _TRIM$(STR$(loctime.wSecond))
+    IF LEN(second) <> 2 THEN
+        second = "0" + second
+    END IF
+    ExtractTimestamp = year + "-" + month + "-" + day + " " + hour + ":" + minute + ":" + second
+END FUNCTION
+
+FUNCTION UUIDVer1$ '  Version: 1 (Date & MAC Address) Generated from Date & time and MAC address of network card. Can be security issue.
+    DIM GUID AS GUID 'Variant: DCE 1.1, ISO/IEC 11578:1996
+    DIM UUID AS STRING
+    DIM a%&
+    DIM status AS LONG
+    DO
+        a%& = UuidCreateSequential(GUID)
+        IF a%& = 0 THEN
+            UUID = UUIDToString(GUID)
+            GUIDHash = UuidHash(GUID, status)
+            UUIDVer1 = UUID
+        ELSE
+            UUIDVer1 = NilUUID
+        END IF
+    LOOP UNTIL LEN(UUID) = 36
+END FUNCTION
+
+FUNCTION UUIDVer3$ (mode AS INTEGER, StringToHash AS STRING)
+    DIM UUID AS STRING
+    DIM GUID AS GUID
+    DIM status AS LONG
+    DIM URL AS STRING
+
+    DIM hsession AS LONG
+    hsession = InternetOpen(0, INTERNET_OPEN_TYPE_DIRECT, 0, 0, 0)
+
+    DIM httpsession AS LONG
+    URL = "uuidtools.com" + CHR$(0)
+    httpsession = InternetConnect(hsession, _OFFSET(URL), INTERNET_DEFAULT_HTTPS_PORT, 0, 0, INTERNET_SERVICE_HTTP, 0, 0)
+
+    DIM httpRequest AS LONG
+    DIM sessiontype AS STRING
+    sessiontype = "GET" + CHR$(0)
+    DIM location AS STRING
+    location = "/api/generate/v3/namespace/"
+    SELECT CASE mode
+        CASE 1
+            location = location + "ns:dns/name/"
+        CASE 2
+            location = location + "ns:url/name/"
+        CASE 3
+            location = location + "ns:oid/name/"
+        CASE 4
+            location = location + "ns:x500/name/"
+    END SELECT
+    location = location + StringToHash + CHR$(0)
+    httpRequest = HTTPOpenRequest(httpsession, _OFFSET(sessiontype), _OFFSET(location), 0, 0, 0, INTERNET_FLAG_RELOAD OR INTERNET_FLAG_SECURE, 0)
+
+    DIM sendrequest AS LONG
+    sendrequest = HTTPSendRequest(httpRequest, 0, 0, 0, 0)
+    DIM szBuffer AS STRING
+    szBuffer = SPACE$(1025)
+    DIM dwRead AS LONG
+    DIM readfile AS LONG
+    readfile = InternetReadFile(httpRequest, _OFFSET(szBuffer), LEN(szBuffer) - 1, _OFFSET(dwRead))
+    UUID = UCASE$(MID$(_TRIM$(szBuffer), 3, 36))
+
+    StringToUUID UUID, GUID
+
+    GUIDHash = UuidHash(GUID, status)
+    UUIDVer3 = UUID
+END FUNCTION
+
+FUNCTION UUIDVer4$ '  Version: 4 (Random) For a truly unique UUID, use this. Can't be duplicated and doesn't reference a MAC address.
+    DIM GUID AS GUID 'Variant: DCE 1.1, ISO/IEC 11578:1996
+    DIM UUID AS STRING
+    DIM a%&
+    DIM status AS LONG
+    DO
+        a%& = UuidCreate(GUID)
+        IF a%& = 0 THEN
+            UUID = UUIDToString(GUID)
+            GUIDHash = UuidHash(GUID, status)
+            UUIDVer4 = UUID
+        ELSE
+            UUIDVer4 = NilUUID
+        END IF
+    LOOP UNTIL LEN(UUID) = 36
+END FUNCTION
+
+FUNCTION UUIDVer5$ (mode AS INTEGER, StringToHash AS STRING)
+    DIM UUID AS STRING
+    DIM GUID AS GUID
+    DIM status AS LONG
+    DIM URL AS STRING
+
+    DIM hsession AS LONG
+    hsession = InternetOpen(0, INTERNET_OPEN_TYPE_DIRECT, 0, 0, 0)
+
+    DIM httpsession AS LONG
+    URL = "uuidtools.com" + CHR$(0)
+    httpsession = InternetConnect(hsession, _OFFSET(URL), INTERNET_DEFAULT_HTTPS_PORT, 0, 0, INTERNET_SERVICE_HTTP, 0, 0)
+
+    DIM httpRequest AS LONG
+    DIM sessiontype AS STRING
+    sessiontype = "GET" + CHR$(0)
+    DIM location AS STRING
+    location = "/api/generate/v5/namespace/"
+    SELECT CASE mode
+        CASE 1
+            location = location + "ns:dns/name/"
+        CASE 2
+            location = location + "ns:url/name/"
+        CASE 3
+            location = location + "ns:oid/name/"
+        CASE 4
+            location = location + "ns:x500/name/"
+    END SELECT
+    location = location + StringToHash + CHR$(0)
+    httpRequest = HTTPOpenRequest(httpsession, _OFFSET(sessiontype), _OFFSET(location), 0, 0, 0, INTERNET_FLAG_RELOAD OR INTERNET_FLAG_SECURE, 0)
+
+    DIM sendrequest AS LONG
+    sendrequest = HTTPSendRequest(httpRequest, 0, 0, 0, 0)
+    DIM szBuffer AS STRING
+    szBuffer = SPACE$(1025)
+    DIM dwRead AS LONG
+    DIM readfile AS LONG
+    readfile = InternetReadFile(httpRequest, _OFFSET(szBuffer), LEN(szBuffer) - 1, _OFFSET(dwRead))
+    UUID = UCASE$(MID$(_TRIM$(szBuffer), 3, 36))
+
+    StringToUUID UUID, GUID
+
+    GUIDHash = UuidHash(GUID, status)
+    UUIDVer5 = UUID
+END FUNCTION
+
+FUNCTION NilUUID$
+    NilUUID = "00000000-0000-0000-0000-000000000000"
+END FUNCTION
+
+FUNCTION UUIDToString$ (GUID AS GUID)
+    DIM UUID AS STRING
+    IF LEN(HEX$(GUID.Data1)) <> 8 THEN
+        UUID = "0" + HEX$(GUID.Data1) + "-"
+    ELSE
+        UUID = HEX$(GUID.Data1) + "-"
+    END IF
+    IF LEN(HEX$(GUID.Data2)) <> 4 THEN
+        UUID = UUID + "0" + HEX$(GUID.Data2) + "-"
+    ELSE
+        UUID = UUID + HEX$(GUID.Data2) + "-"
+    END IF
+    IF LEN(HEX$(GUID.Data3)) <> 4 THEN
+        UUID = UUID + "0" + HEX$(GUID.Data3) + "-"
+    ELSE
+        UUID = UUID + HEX$(GUID.Data3) + "-"
+    END IF
+    IF LEN(HEX$(GUID.Data4)) <> 2 THEN
+        UUID = UUID + "0" + HEX$(GUID.Data4)
+    ELSE
+        UUID = UUID + HEX$(GUID.Data4)
+    END IF
+    IF LEN(HEX$(GUID.Data5)) <> 2 THEN
+        UUID = UUID + "0" + HEX$(GUID.Data5) + "-"
+    ELSE
+        UUID = UUID + HEX$(GUID.Data5) + "-"
+    END IF
+    IF LEN(HEX$(GUID.Data6)) <> 2 THEN
+        UUID = UUID + "0" + HEX$(GUID.Data6)
+    ELSE
+        UUID = UUID + HEX$(GUID.Data6)
+    END IF
+    IF LEN(HEX$(GUID.Data7)) <> 2 THEN
+        UUID = UUID + "0" + HEX$(GUID.Data7)
+    ELSE
+        UUID = UUID + HEX$(GUID.Data7)
+    END IF
+    IF LEN(HEX$(GUID.Data8)) <> 2 THEN
+        UUID = UUID + "0" + HEX$(GUID.Data8)
+    ELSE
+        UUID = UUID + HEX$(GUID.Data8)
+    END IF
+    IF LEN(HEX$(GUID.Data9)) <> 2 THEN
+        UUID = UUID + "0" + HEX$(GUID.Data9)
+    ELSE
+        UUID = UUID + HEX$(GUID.Data9)
+    END IF
+    IF LEN(HEX$(GUID.Data10)) <> 2 THEN
+        UUID = UUID + "0" + HEX$(GUID.Data10)
+    ELSE
+        UUID = UUID + HEX$(GUID.Data10)
+    END IF
+    IF LEN(HEX$(GUID.Data11)) <> 2 THEN
+        UUID = UUID + "0" + HEX$(GUID.Data11)
+    ELSE
+        UUID = UUID + HEX$(GUID.Data11)
+    END IF
+    UUIDToString = UUID
+END FUNCTION
+
+SUB StringToUUID (UUID AS STRING, GUID AS GUID)
+    DIM Data1 AS STRING
+    DIM Data2 AS STRING
+    DIM Data3 AS STRING
+    DIM Data4 AS STRING
+    DIM Data5 AS STRING
+    DIM Data6 AS STRING
+    DIM Data7 AS STRING
+    DIM Data8 AS STRING
+    DIM Data9 AS STRING
+    DIM Data10 AS STRING
+    DIM Data11 AS STRING
+
+    Data1 = MID$(UUID, 1, 8)
+    Data2 = MID$(UUID, 8, 4)
+    Data3 = MID$(UUID, 12, 3)
+    Data4 = MID$(UUID, 16, 2)
+    Data5 = MID$(UUID, 18, 2)
+    Data6 = MID$(UUID, 20, 2)
+    Data7 = MID$(UUID, 22, 2)
+    Data8 = MID$(UUID, 24, 2)
+    Data9 = MID$(UUID, 26, 2)
+    Data10 = MID$(UUID, 28, 2)
+    Data11 = MID$(UUID, 30, 2)
+
+    GUID.Data1 = VAL("&H" + Data1): GUID.Data2 = VAL("&H" + Data2): GUID.Data3 = VAL("&H" + Data3): GUID.Data4 = VAL("&H" + Data4): GUID.Data5 = VAL("&H" + Data5): GUID.Data6 = VAL("&H" + Data6)
+    GUID.Data7 = VAL("&H" + Data7): GUID.Data8 = VAL("&H" + Data8): GUID.Data9 = VAL("&H" + Data9): GUID.Data10 = VAL("&H" + Data10): GUID.Data11 = VAL("&H" + Data11)
+END SUB
+
+FUNCTION UUIDComp% (UUID1 AS STRING, UUID2 AS STRING)
+    DIM a AS INTEGER
+    DIM GUID1 AS GUID
+    DIM GUID2 AS GUID
+
+    StringToUUID UUID1, GUID1
+    StringToUUID UUID2, GUID2
+
+    DIM Status AS LONG
+    a = UuidCompare(GUID1, GUID2, Status)
+    UUIDComp = a
+END FUNCTION
