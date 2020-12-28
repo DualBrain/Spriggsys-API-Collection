@@ -1,0 +1,173 @@
+'$CONSOLE:ONLY
+'_DEST _CONSOLE
+
+'To - From, From - To Flags
+CONST FO_MOVE = &H1
+CONST FO_COPY = &H2
+CONST FO_DELETE = &H3
+CONST FO_RENAME = &H4
+
+'File Op Flags
+CONST FOF_MULTIDESTFILES = &H1
+CONST FOF_CONFIRMMOUSE = &H2
+CONST FOF_SILENT = &H4
+CONST FOF_RENAMEONCOLLISION = &H8
+CONST FOF_NOCONFIRMATION = &H10
+CONST FOF_WANTMAPPINGHANDLE = &H20
+CONST FOF_ALLOWUNDO = &H40
+CONST FOF_FILESONLY = &H80
+CONST FOF_SIMPLEPROGRESS = &H100
+CONST FOF_NOCONFIRMMKDIR = &H200
+CONST FOF_NOERRORUI = &H400
+CONST FOF_NOCOPYSECURITYATTRIBS = &H800
+CONST FOF_NORECURSION = &H1000
+CONST FOF_NO_CONNECTED_ELEMENTS = &H2000
+CONST FOF_WANTNUKEWARNING = &H4000
+CONST FOF_NORECURSEREPARSE = &H8000
+CONST FOF_NO_UI = FOF_SILENT
+
+'Return Values
+CONST DE_SAMEFILE = &H71
+CONST DE_MANYSRC1DEST = &H72
+CONST DE_DIFFDIR = &H73
+CONST DE_ROOTDIR = &H74
+CONST DE_OPCANCELLED = &H75
+CONST DE_DESTSUBTREE = &H76
+CONST DE_ACCESSDENIEDSRC = &H78
+CONST DE_PATHTOODEEP = &H79
+CONST DE_MANYDEST = &H7A
+CONST DE_INVALIDFILES = &H7C
+CONST DE_DESTSAMETREE = &H7D
+CONST DE_FLDDESTISFILE = &H7E
+CONST DE_FILEDESTISFLD = &H80
+CONST DE_FILENAMETOOLONG = &H81
+CONST DE_DEST_IS_CDROM = &H82
+CONST DE_DEST_IS_DVD = &H83
+CONST DE_DEST_IS_CDRECORD = &H84
+CONST DE_FILE_TOO_LARGE = &H85
+CONST DE_SRC_IS_CDROM = &H86
+CONST DE_SRC_IS_DVD = &H87
+CONST DE_SRC_IS_CDRECORD = &H88
+CONST DE_ERROR_MAX = &HB7
+CONST UNKNOWN = &H402
+CONST ERRORONDEST = &H10000
+CONST DE_ROOTDIR_ERRORONDEST = &H10074
+
+TYPE SHFILEOPSTRUCTA
+    hwnd AS _OFFSET
+    $IF 64BIT THEN
+        wfunc AS _UNSIGNED _INTEGER64 'To - From, From - To Flags
+    $ELSE
+    wfunc AS _UNSIGNED LONG
+    $END IF
+    pFrom AS _OFFSET
+    pTo AS _OFFSET
+    fFlags AS LONG
+    fAnyOperationsAborted AS _BYTE
+    hNameMappings AS _OFFSET
+    lpszProgressTitle AS _OFFSET
+END TYPE
+
+TYPE SHQUERYRBINFO
+    $IF 64BIT THEN
+        cbsize AS _INTEGER64
+        i64Size AS _INTEGER64
+        i64NumItems AS _INTEGER64
+    $ELSE
+    cbsize AS LONG
+    i64Size AS _INTEGER64
+    i64NumItems AS _INTEGER64
+    $END IF
+END TYPE
+
+DECLARE DYNAMIC LIBRARY "Shell32"
+    FUNCTION FileOperation% ALIAS SHFileOperationA (lpFileOp AS SHFILEOPSTRUCTA)
+    FUNCTION EmptyRecycleBin% ALIAS SHEmptyRecycleBinA (BYVAL hwnd AS LONG, BYVAL pszRootPath AS _OFFSET, BYVAL dwFlags AS LONG)
+    FUNCTION QueryRecycleBin~& ALIAS SHQueryRecycleBinA (pszRootPath AS STRING, pSHQueryRBInfo AS SHQUERYRBINFO)
+END DECLARE
+
+'Test code
+IF _FILEEXISTS(_DIR$("desktop") + "this is a test.txt") = 0 THEN
+    OPEN _DIR$("desktop") + "this is a test.txt" FOR OUTPUT AS #1
+    CLOSE #1
+END IF
+PRINT Copy(_DIR$("desktop") + "this is a test.txt", _DIR$("desktop") + "this is a test as well.txt")
+_DELAY 2
+PRINT Rename(_DIR$("desktop") + "this is a test as well.txt", _DIR$("desktop") + "this is a test also.txt")
+_DELAY 2
+PRINT Recycle(_DIR$("desktop") + "this is a test also.txt")
+_DELAY 2
+PRINT GetRecycleInfo
+_DELAY 2
+PRINT EmptyBin
+
+
+FUNCTION GetRecycleInfo$
+    DIM RecycleInfo AS SHQUERYRBINFO
+    DIM path AS STRING
+    DIM a~&
+    path = "" + CHR$(0)
+    RecycleInfo.cbsize = LEN(RecycleInfo)
+    a~& = QueryRecycleBin(path, RecycleInfo)
+    GetRecycleInfo = _TRIM$(STR$(RecycleInfo.i64Size)) + " " + _TRIM$(STR$(RecycleInfo.i64NumItems))
+END FUNCTION
+
+FUNCTION Recycle% (file AS STRING)
+    DIM lpFileOp AS SHFILEOPSTRUCTA
+    DIM doublenull AS STRING
+    doublenull = CHR$(0) + CHR$(0)
+    file = file + doublenull
+    lpFileOp.hwnd = _WINDOWHANDLE
+    lpFileOp.wfunc = FO_DELETE
+    lpFileOp.pFrom = _OFFSET(file)
+    lpFileOp.fFlags = FOF_ALLOWUNDO + FOF_WANTNUKEWARNING
+    Recycle = FileOperation(lpFileOp)
+END FUNCTION
+
+FUNCTION Copy% (file AS STRING, dest AS STRING)
+    DIM lpFileOp AS SHFILEOPSTRUCTA
+    DIM doublenull AS STRING
+    doublenull = CHR$(0) + CHR$(0)
+    file = file + doublenull
+    dest = dest + doublenull
+    lpFileOp.hwnd = _WINDOWHANDLE
+    lpFileOp.wfunc = FO_COPY
+    lpFileOp.pFrom = _OFFSET(file)
+    lpFileOp.pTo = _OFFSET(dest)
+    lpFileOp.fFlags = FOF_ALLOWUNDO
+    Copy = FileOperation(lpFileOp)
+END FUNCTION
+
+FUNCTION Move% (file AS STRING, dest AS STRING)
+    DIM lpFileOp AS SHFILEOPSTRUCTA
+    DIM doublenull AS STRING
+    doublenull = CHR$(0) + CHR$(0)
+    file = file + doublenull
+    dest = dest + doublenull
+    lpFileOp.hwnd = _WINDOWHANDLE
+    lpFileOp.wfunc = FO_MOVE
+    lpFileOp.pFrom = _OFFSET(file)
+    lpFileOp.pTo = _OFFSET(dest)
+    lpFileOp.fFlags = FOF_ALLOWUNDO
+    Move = FileOperation(lpFileOp)
+END FUNCTION
+
+FUNCTION Rename% (file AS STRING, newname AS STRING)
+    DIM lpFileOp AS SHFILEOPSTRUCTA
+    DIM doublenull AS STRING
+    doublenull = CHR$(0) + CHR$(0)
+    file = file + doublenull
+    newname = newname + doublenull
+    lpFileOp.hwnd = _WINDOWHANDLE
+    lpFileOp.wfunc = FO_RENAME
+    lpFileOp.pFrom = _OFFSET(file)
+    lpFileOp.pTo = _OFFSET(newname)
+    lpFileOp.fFlags = FOF_ALLOWUNDO
+    Rename = FileOperation(lpFileOp)
+END FUNCTION
+
+FUNCTION EmptyBin%
+    DIM drive AS STRING
+    drive = ""
+    EmptyBin = EmptyRecycleBin(0, _OFFSET(drive), 0)
+END FUNCTION
