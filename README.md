@@ -1,7 +1,7 @@
 # Spriggsy's API Collection
 ## Collection of QB64 code written to interface with numerous APIs (REST/HTTP/WinAPI/C/C++)
 
-## REST, HTTP, HTTPS API using CURL, urlmon, _OPENCONNECTION (Windows)
+## REST, HTTP, HTTPS API (Windows)
 
 * Address Validation API (smartystreets.com)
 
