@@ -84,7 +84,7 @@
 
 * (Wininet) Various Wininet FTP functions for uploading, downloading, directory listing, etc. Added 11/17/2020
 
-* SHOpenWithDialog (Shell32) Added 02/06/2021 Invokes the "Open with" dialog in Windows
+* SHOpenWithDialog (Shell32) Invokes the "Open with" dialog in Windows Added 02/06/2021
 
 ## Cross-Platform Libraries (Windows, Macintosh, and Linux)
 * pipecom (pipecom) Header file that pipes console output to QB64. Win (using WinAPI), Mac, and Linux (using C libraries). Added 10/26/2020
