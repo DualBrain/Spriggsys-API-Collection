@@ -88,6 +88,7 @@
 
 ## Cross-Platform Libraries (Windows, Macintosh, and Linux)
 * pipecom (pipecom) Header file that pipes console output to QB64. Win (using WinAPI), Mac, and Linux (using C libraries). Added 10/26/2020
+  * Updated pipecom! Now it exists as a header and as a pure QB64 include. Both work equally as well. Added 02/12/2021
 
 * encodeBase64, decodeBase64 (Crypt32, base64 (Linux and Mac)) Added 11/05/2020
 
