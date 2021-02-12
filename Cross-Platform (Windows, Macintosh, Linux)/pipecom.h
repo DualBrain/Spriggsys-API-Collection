@@ -28,9 +28,10 @@ SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
     si.hStdInput = NULL;
     PROCESS_INFORMATION pi = { };
     LPSTR lpApplicationName = NULL;
-	char * fullcmd = (char *) malloc(1+strlen(cmd)+strlen((LPSTR)"cmd /c "));
+	char * fullcmd = (char *) malloc(1+strlen(cmd)+strlen((LPSTR)"cmd /c ")+strlen((LPSTR)" 2>&1"));
 	strcpy(fullcmd, (LPSTR)"cmd /c ");
 	strcat(fullcmd, cmd);
+	strcat(fullcmd, (LPSTR)" 2>&1");
     LPSTR lpCommandLine = (LPSTR)fullcmd;
     LPSECURITY_ATTRIBUTES lpProcessAttributes = NULL;
     LPSECURITY_ATTRIBUTES lpThreadAttribute = NULL;
@@ -69,11 +70,11 @@ string pipecom_buffer;
 const char* pipecom (char* cmd){
 	pipecom_buffer = "";
     FILE* stream;
-    const int max_buffer = 256;
+    const int max_buffer = 4096;
     char buffer[max_buffer];
     pipecom_buffer.clear();
 
-    stream = popen(cmd, "r");
+    stream = popen(cmd + " 2>&1", "r");
     if (stream) {
         while (!feof(stream)) {
             if (fgets(buffer, max_buffer, stream) != NULL) {
