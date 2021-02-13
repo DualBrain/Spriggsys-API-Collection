@@ -1,4 +1,3 @@
-
 Function pipecom& (cmd As String, stdout As String, stderr As String)
     $If WIN Then
         Type SECURITY_ATTRIBUTES
@@ -119,14 +118,14 @@ Function pipecom& (cmd As String, stdout As String, stderr As String)
         Dim As Long dwRead
         While ReadFile(hStdOutPipeRead, _Offset(buf), 4096, _Offset(dwRead), 0) <> 0 And dwRead > 0
             buf = Mid$(buf, 1, dwRead)
-            buf = String.Remove(buf, Chr$(13))
+            GoSub RemoveChr13
             stdout = stdout + buf
             buf = Space$(4096 + 1)
         Wend
 
         While ReadFile(hStdReadPipeError, _Offset(buf), 4096, _Offset(dwRead), 0) <> 0 And dwRead > 0
             buf = Mid$(buf, 1, dwRead)
-            buf = String.Remove(buf, Chr$(13))
+            GoSub RemoveChr13
             stderr = stderr + buf
             buf = Space$(4096 + 1)
         Wend
@@ -146,6 +145,17 @@ Function pipecom& (cmd As String, stdout As String, stderr As String)
         Else
             pipecom = -1
         End If
+
+        Exit Function
+
+        RemoveChr13:
+        Dim j As Long
+        j = InStr(buf, Chr$(13))
+        Do While j
+            buf = Left$(buf, j - 1) + Mid$(buf, j + 1)
+            j = InStr(buf, Chr$(13))
+        Loop
+        Return
     $Else
         Declare CustomType Library
         Function popen%& (cmd As String, readtype As String)
@@ -201,19 +211,3 @@ Function pipecom_lite$ (cmd As String)
     a = pipecom(cmd, stdout, stderr)
     pipecom_lite$ = stdout
 End Function
-
-$If WIN Then
-    Function String.Remove$ (a As String, b As String)
-        Dim c As String
-        Dim j
-        Dim r$
-        c = ""
-        j = InStr(a, b)
-        If j > 0 Then
-            r$ = Left$(a, j - 1) + c + String.Remove(Right$(a, Len(a) - j + 1 - Len(b)), b)
-        Else
-            r$ = a
-        End If
-        String.Remove = r$
-    End Function
-$End If
