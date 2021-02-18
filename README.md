@@ -78,7 +78,7 @@
 
 * GetDateFormat, GetCurrencyFormat (Kernel32) Added 10/09/2020
 
-* OpenProcess, ReadProcessMemory, WriteProcessMemory (Kernel32) Added 10/16/2020 (Peeping Tom, a powerful PEEK/POKE library for QB64)
+* OpenProcess, ReadProcessMemory, WriteProcessMemory (Kernel32) Complete Rewrite 02/17/21 (Peeping Tom, a powerful PEEK/POKE library for QB64)
 
 * XInputGetState, XInputSetState, XInputGetBatteryInformation (Xinput1_4) Tests an XInput enabled controller Added 10/26/2020
 
