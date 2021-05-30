@@ -25,7 +25,6 @@ Const LMEM_ZEROINIT = &H0040
 Declare CustomType Library
     Function LoadLibrary%& (lpLibFileName As String)
     Function GetProcAddress%& (ByVal hModule As _Offset, lpProcName As String)
-    Function FreeLibrary%% (ByVal hLibModule As _Offset)
     Sub FreeLibrary (ByVal hLibModule As _Offset)
     Function GetLastError& ()
     Function HeapAlloc%& (ByVal hHeap As _Offset, Byval dwFlags As Long, Byval dwBytes As _Offset)
@@ -34,11 +33,9 @@ Declare CustomType Library
     Function CreateThread%& (ByVal lpThreadAttributes As _Offset, Byval dwStackSize As _Offset, Byval lpStartAddress As _Offset, Byval lpParameter As _Offset, Byval dwCreationFlags As Long, Byval lpThreadId As _Offset)
     Function WaitForMultipleObjects& (ByVal nCount As Long, Byval lpHandles As _Offset, Byval bWaitAll As _Byte, Byval dwMilliseconds As Long)
     Sub WaitForMultipleObjects (ByVal nCount As Long, Byval lpHandles As _Offset, Byval bWaitAll As _Byte, Byval dwMilliseconds As Long)
-    Function CloseHandle%% (ByVal hObject As _Offset)
     Sub CloseHandle (ByVal hObject As _Offset)
-    Function HeapFree%% (ByVal hHeap As _Offset, Byval dwFlags As Long, Byval lpMem As _Offset)
     Sub HeapFree (ByVal hHeap As _Offset, Byval dwFlags As Long, Byval lpMem As _Offset)
-    Sub StringCchPrintf Alias "StringCchPrintfA" (ByVal pszDest As _Offset, Byval cchDest As _Offset, byvalpszFormat As String, Byval arg1 As Long, Byval arg2 As Long)
+    Sub StringCchPrintf Alias "StringCchPrintfA" (ByVal pszDest As _Offset, Byval cchDest As _Offset, pszFormat As String, Byval arg1 As Long, Byval arg2 As Long)
     Sub StringCchPrintf2 Alias "StringCchPrintfA" (ByVal pszDest As _Offset, Byval cchDest As _Offset, pszFormat As String, lpszFunction As String, Byval error As Long, Byval lpMsgBuf As _Offset)
     Sub StringCchLength Alias "StringCchLengthA" (ByVal psz As _Offset, Byval cchMax As _Offset, Byval pcchLength As _Offset)
     Function GetStdHandle%& (ByVal nStdHandle As Long)
@@ -50,7 +47,6 @@ Declare CustomType Library
     Function LocalAlloc%& (ByVal uFlags As _Unsigned Long, Byval uBytes As _Unsigned _Offset)
     Function lstrlen& Alias "lstrlenA" (ByVal lpString As _Offset)
     Function LocalSize%& (ByVal hMem As _Offset)
-    Sub SetLastError (ByVal dwError As Long)
 End Declare
 
 Declare Library "threadwin"
@@ -97,6 +93,7 @@ For i = 1 To MAX_THREADS
     End If
 Next
 CloseHandle ghMutex
+_MemFree pdata
 FreeLibrary libload
 
 Function MyThreadFunction& (lpParam As _Offset)
@@ -114,6 +111,7 @@ Function MyThreadFunction& (lpParam As _Offset)
     StringCchPrintf _Offset(msgBuf), BUF_SIZE, "Parameters = %d, %d" + Chr$(10) + Chr$(0), MyData.val1, MyData.val2
     StringCchLength _Offset(msgBuf), BUF_SIZE, _Offset(cchStringSize)
     WriteConsole hStdout, _Offset(msgBuf), cchStringSize, _Offset(dwChars), 0
+    _MemFree PMYDATA
     MyThreadFunction = 0
 End Function
 
