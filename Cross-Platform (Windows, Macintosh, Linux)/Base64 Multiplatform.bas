@@ -15,35 +15,6 @@ PRINT decode
 SLEEP
 
 $IF WIN THEN
-    'DECLARE LIBRARY ".\pipecom"
-    '    FUNCTION pipecom$ (cmd AS STRING)
-    'END DECLARE
-    'FUNCTION encodeBase64$ (encode AS STRING)
-    '    DIM encoded AS STRING
-    '    DIM encodefile AS INTEGER
-    '    encodefile = FREEFILE
-    '    OPEN "3nc0deb64" FOR OUTPUT AS #encodefile
-    '    PRINT #encodefile, encode
-    '    CLOSE #encodefile
-    '    encoded = pipecom("certutil -encode 3nc0deb64 3nc0dedb64 && type 3nc0dedb64 && del 3nc0dedb64 && del 3nc0deb64")
-    '    encoded = MID$(encoded, INSTR(encoded, "-----BEGIN CERTIFICATE-----") + LEN("-----BEGIN CERTIFICATE-----") + 1)
-    '    encoded = MID$(encoded, 1, INSTR(encoded, "-----END CERTIFICATE-----") - 2)
-    '    encodeBase64 = encoded
-    'END FUNCTION
-
-    'FUNCTION decodeBase64$ (decode AS STRING)
-    '    DIM decoded AS STRING
-    '    DIM decodefile AS INTEGER
-    '    decodefile = FREEFILE
-    '    OPEN "d3c0deb64" FOR OUTPUT AS #decodefile
-    '    PRINT #decodefile, decode
-    '    CLOSE #decodefile
-    '    decoded = pipecom("certutil -decode d3c0deb64 d3c0dedb64 && type d3c0dedb64 && del d3c0deb64 && del d3c0dedb64")
-    '    decoded = MID$(decoded, _INSTRREV(decoded, "successfully.") + 1 + LEN("successfully."))
-    '    decoded = MID$(decoded, 1, LEN(decoded) - 1)
-    '    decodeBase64 = decoded
-    'END FUNCTION
-
     DECLARE DYNAMIC LIBRARY "Crypt32"
         FUNCTION CryptBinaryToString%% ALIAS CryptBinaryToStringA (BYVAL pbBinary AS _OFFSET, BYVAL cbBinary AS LONG, BYVAL dwFlags AS LONG, BYVAL pszString AS _OFFSET, BYVAL pcchString AS _OFFSET)
         FUNCTION CryptStringToBinary%% ALIAS CryptStringToBinaryA (BYVAL pszString AS _OFFSET, BYVAL cchString AS LONG, BYVAL dwFlags AS LONG, BYVAL pbBinary AS _OFFSET, BYVAL pcbBinary AS _OFFSET, BYVAL pdwSkip AS _OFFSET, BYVAL pdwFlags AS _OFFSET)
@@ -103,31 +74,30 @@ $IF WIN THEN
         END IF
     END FUNCTION
 $ELSE
-    DECLARE LIBRARY "./pipecom"
-    FUNCTION pipecom$ (cmd AS STRING)
-    END DECLARE
+    Function encodeBase64$ (encode As String)
+        Dim As String encoded, stdout, stderr
+        Dim As Integer encodefile
+        Dim As Long exit_code
+        encodefile = FreeFile
+        Open "3nc0deb64" For Output As #encodefile
+        Print #encodefile, encode
+        Close #encodefile
+        exit_code = pipecom("base64 3nc0deb64", stdout, stderr)
+        Kill "3nc0deb64"
+        encodeBase64 = Mid$(stdout, 1, Len(stdout) - 1)
+    End Function
 
-    FUNCTION encodeBase64$ (encode AS STRING)
-    DIM encoded AS STRING
-    DIM encodefile AS INTEGER
-    encodefile = FREEFILE
-    OPEN "3nc0deb64" FOR OUTPUT AS #encodefile
-    PRINT #encodefile, encode
-    CLOSE #encodefile
-    encoded = pipecom("base64 3nc0deb64")
-    KILL "3nc0deb64"
-    encodeBase64 = MID$(encoded, 1, LEN(encoded) - 1)
-    END FUNCTION
-
-    FUNCTION decodeBase64$ (decode AS STRING)
-    DIM decoded AS STRING
-    DIM decodefile AS INTEGER
-    decodefile = FREEFILE
-    OPEN "d3c0deb64" FOR OUTPUT AS #decodefile
-    PRINT #decodefile, decode
-    CLOSE #decodefile
-    decoded = pipecom("base64 -d d3c0deb64")
-    KILL "d3c0deb64"
-    decodeBase64 = decoded
-    END FUNCTION
+    Function decodeBase64$ (decode As String)
+        Dim As String decoded, stdout, stderr
+        Dim As Integer decodefile
+        Dim As Long exit_code
+        decodefile = FreeFile
+        Open "d3c0deb64" For Output As #decodefile
+        Print #decodefile, decode
+        Close #decodefile
+        exit_code = pipecom("base64 -d d3c0deb64", stdout, stderr)
+        Kill "d3c0deb64"
+        decodeBase64 = stdout
+    End Function
+    '$INCLUDE:'pipecomqb64.bas'
 $END IF
