@@ -104,3 +104,5 @@
 
 ## Miscellaneous APIs / Libraries
 * hid_read, hid_write (hidapi) Provides HID access to devices over Bluetooth and USB connection (Windows) Test source for interfacing with Nintendo Switch Pro Controller over     Bluetooth HID. Added 12/07/2020.
+
+Other APIs will be updated here as time goes on.
