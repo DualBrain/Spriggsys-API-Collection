@@ -126,7 +126,7 @@ DECLARE DYNAMIC LIBRARY "Kernel32"
 END DECLARE
 
 
-CALL FTPConnect("SpriggsyWinServer", "zspriggs14@gmail.com", "Zspriggs-14", INTERNET_DEFAULT_FTP_PORT)
+CALL FTPConnect("yourserver", "yourusername", "yourpassword", INTERNET_DEFAULT_FTP_PORT)
 
 DIM a AS _BYTE
 'a = FTPchdir("Server/Server1/Movies/Bob Hope and Bing Crosby")
